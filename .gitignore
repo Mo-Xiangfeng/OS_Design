@@ -22,5 +22,8 @@ xv6.out*
 submissions/
 ph
 barrier
+<<<<<<< HEAD
 /lab-*.json
 .DS_Store
+=======
+>>>>>>> thread

@@ -1,0 +1,23 @@
+Q1: Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+
+A: uptime(). The kernel could store the current tick count in the USYSCALL
+page, just like it stores the PID, and update it in clockintr()/trap.c on
+every timer tick. Then ugetpid()'s counterpart, e.g. uuptime(), could read
+the value directly from the shared read-only page without trapping into the
+kernel. fstat() on an open file could also be accelerated this way if the
+kernel updated the file's metadata (size, type, etc.) in a shared page.
+
+Q2: For every leaf page in the vmprint output, explain what it logically
+contains and what its permission bits are.
+
+- .. .. ..0 / .. .. ..1 / .. .. ..2: the init program's text and data pages
+  (PTE_U | PTE_R | PTE_W, plus PTE_X for code), mapped from the ELF file.
+- .. .. ..509 (USYSCALL): the read-only page shared with the kernel that
+  stores struct usyscall (the process PID); mapped PTE_U | PTE_R so that
+  user space can only read it.
+- .. .. ..510 (TRAPFRAME): the trapframe page that saves user registers
+  when a trap occurs; mapped PTE_R | PTE_W, not accessible from user mode
+  (no PTE_U).
+- .. .. ..511 (TRAMPOLINE): the trampoline code page that switches between
+  user and kernel page tables during trap entry/exit; mapped PTE_R | PTE_X,
+  also not accessible from user mode.
