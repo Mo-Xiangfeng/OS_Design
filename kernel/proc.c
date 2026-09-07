@@ -127,6 +127,13 @@ found:
     return 0;
   }
 
+  // Allocate the page used to save registers for the alarm handler.
+  if((p->alarm_trapframe = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
 #ifdef LAB_PGTBL
   // Allocate the usyscall page, shared read-only with the kernel.
   if((p->usyscall = (struct usyscall *)kalloc()) == 0){
@@ -163,6 +170,9 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  if(p->alarm_trapframe)
+    kfree((void*)p->alarm_trapframe);
+  p->alarm_trapframe = 0;
 #ifdef LAB_PGTBL
   if(p->usyscall)
     kfree((void*)p->usyscall);
@@ -319,6 +329,11 @@ fork(void)
   }
   np->sz = p->sz;
   np->mask = p->mask;
+  // the child does not inherit the parent's alarm
+  np->interval = 0;
+  np->ticks = 0;
+  np->handler = 0;
+  np->alarm_on = 0;
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);

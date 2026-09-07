@@ -109,4 +109,9 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int mask;                    // syscall trace mask
+  int interval;                // alarm interval in ticks (0 = off)
+  int ticks;                   // ticks since last alarm
+  uint64 handler;              // user alarm handler address
+  int alarm_on;                // handler currently running
+  struct trapframe *alarm_trapframe; // saved registers for alarm
 };

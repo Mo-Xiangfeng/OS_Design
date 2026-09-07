@@ -112,6 +112,8 @@ extern uint64 sys_pgaccess(void);
 #endif
 extern uint64 sys_trace(void);
 extern uint64 sys_sysinfo(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 static char *syscall_names[] = {
 [SYS_fork]    "fork",
@@ -137,6 +139,8 @@ static char *syscall_names[] = {
 [SYS_close]   "close",
 [SYS_trace]   "trace",
 [SYS_sysinfo] "sysinfo",
+[SYS_sigalarm] "sigalarm",
+[SYS_sigreturn] "sigreturn",
 };
 
 static uint64 (*syscalls[])(void) = {
@@ -169,6 +173,8 @@ static uint64 (*syscalls[])(void) = {
 #endif
 [SYS_trace]   sys_trace,
 [SYS_sysinfo] sys_sysinfo,
+[SYS_sigalarm] sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
 };
 
 
