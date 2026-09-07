@@ -332,13 +332,40 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 void
 uvmclear(pagetable_t pagetable, uint64 va)
 {
-  pte_t *pte;
-  
+   pte_t *pte;
+   
   pte = walk(pagetable, va, 0);
   if(pte == 0)
     panic("uvmclear");
   *pte &= ~PTE_U;
 }
+
+#ifdef LAB_PGTBL
+// Recursively print the entries of a page table, indented by depth.
+static void
+vmprint_rec(pagetable_t pagetable, int level)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V){
+      for(int j = 0; j < level + 1; j++)
+        printf(" ..");
+      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0 && level < 2)
+        vmprint_rec((pagetable_t)PTE2PA(pte), level + 1);
+    }
+  }
+}
+
+// Print a page table, as an aid for debugging.
+void
+vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  vmprint_rec(pagetable, 0);
+}
+#endif
+
 
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.

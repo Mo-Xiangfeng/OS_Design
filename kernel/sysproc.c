@@ -78,10 +78,37 @@ sys_sleep(void)
 
 
 #ifdef LAB_PGTBL
+// Report which pages in [base, base+len*PGSIZE) have been accessed,
+// as a bitmask written to the user buffer at abits_addr.
 int
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 base, abits_addr;
+  int len;
+  uint64 abits = 0;
+  struct proc *p = myproc();
+
+  if(argaddr(0, &base) < 0)
+    return -1;
+  if(argint(1, &len) < 0)
+    return -1;
+  if(argaddr(2, &abits_addr) < 0)
+    return -1;
+  if(len > 64)
+    return -1;
+
+  for(int i = 0; i < len; i++){
+    pte_t *pte = walk(p->pagetable, base + i * PGSIZE, 0);
+    if(pte == 0 || (*pte & PTE_V) == 0)
+      return -1;
+    if(*pte & PTE_A){
+      abits |= (1L << i);
+      *pte &= ~PTE_A;
+    }
+  }
+
+  if(copyout(p->pagetable, abits_addr, (char *)&abits, sizeof(abits)) < 0)
+    return -1;
   return 0;
 }
 #endif
