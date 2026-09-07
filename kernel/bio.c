@@ -27,9 +27,10 @@
 #include "fs.h"
 #include "buf.h"
 
+struct buf bcache_buf[NBUF];
+
 struct {
   struct spinlock lock[NBUCKET];
-  struct buf buf[NBUF];
 
   // Linked list of all buffers, through prev/next.
   // Each buffer belongs to the bucket determined by its block number.
@@ -51,9 +52,9 @@ binit(void)
   }
 
   // Create linked list of buffers, placing each into some bucket.
-  for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+  for(b = bcache_buf; b < bcache_buf+NBUF; b++){
     initsleeplock(&b->lock, "buffer");
-    int i = HASH(0, b - bcache.buf);
+    int i = HASH(0, b - bcache_buf);
     b->next = bcache.bucket[i].next;
     b->prev = &bcache.bucket[i];
     bcache.bucket[i].next->prev = b;
