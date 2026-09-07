@@ -66,8 +66,10 @@ usertrap(void)
 
     syscall();
   } else if(r_scause() == 13 || r_scause() == 15){
-    // load/store page fault: try copy-on-write
-    if(cowfault(p->pagetable, r_stval()) < 0)
+    // load/store page fault: try copy-on-write, then a lazily-mapped
+    // mmap region
+    if(cowfault(p->pagetable, r_stval()) < 0 &&
+       mmapfault(p, r_stval()) < 0)
       p->killed = 1;
   } else if((which_dev = devintr()) != 0){
     // ok

@@ -425,6 +425,203 @@ sys_symlink(void)
   return 0;
 }
 
+// Map the file fd at a kernel-chosen address.  The mapping is created
+// lazily: no physical memory is allocated here; page faults on the
+// region are handled by mmapfault().
+uint64
+sys_mmap(void)
+{
+  uint64 addr;
+  int len, prot, flags, fd;
+  uint64 offset;
+  struct file *f;
+  struct proc *p = myproc();
+  struct vma *v;
+
+  if(argaddr(0, &addr) < 0 || argint(1, &len) < 0 ||
+     argint(2, &prot) < 0 || argint(3, &flags) < 0 ||
+     argint(4, &fd) < 0 || argaddr(5, &offset) < 0)
+    return -1;
+
+  if(len <= 0)
+    return -1;
+  if(offset % PGSIZE != 0)
+    return -1;
+  if(fd < 0 || fd >= NOFILE || (f = p->ofile[fd]) == 0)
+    return -1;
+  if(f->type != FD_INODE)
+    return -1;
+  // a writable MAP_SHARED mapping requires a writable file
+  if((prot & PROT_WRITE) && (flags & MAP_SHARED) && !f->writable)
+    return -1;
+
+  // find a free VMA slot
+  v = 0;
+  for(int i = 0; i < MAXVMA; i++){
+    if(p->vmas[i].f == 0){
+      v = &p->vmas[i];
+      break;
+    }
+  }
+  if(v == 0)
+    return -1;
+
+  v->addr = PGROUNDUP(p->sz);   // map just above the heap
+  v->len = PGROUNDUP(len);
+  v->prot = prot;
+  v->flags = flags;
+  v->offset = offset;
+  v->f = f;
+  filedup(f);
+
+  p->sz = v->addr + v->len;
+  return v->addr;
+}
+
+// Handle a page fault in a lazily-mapped mmap region: allocate a page,
+// fill it with the file's content, and map it.  Returns 0 on success,
+// -1 if va is not inside any mapped region.
+int
+mmapfault(struct proc *p, uint64 va)
+{
+  struct vma *v;
+  char *mem;
+  int n;
+  int pteflags;
+
+  va = PGROUNDDOWN(va);
+
+  for(int i = 0; i < MAXVMA; i++){
+    v = &p->vmas[i];
+    if(v->f == 0 || va < v->addr || va >= v->addr + v->len)
+      continue;
+
+    if((mem = kalloc()) == 0)
+      return -1;
+    memset(mem, 0, PGSIZE);
+
+    // read the corresponding part of the file (readi returns fewer
+    // bytes at end-of-file; the rest of the page stays zero)
+    begin_op();
+    ilock(v->f->ip);
+    n = readi(v->f->ip, 0, (uint64)mem, v->offset + (va - v->addr), PGSIZE);
+    iunlock(v->f->ip);
+    end_op();
+    if(n < 0){
+      kfree(mem);
+      return -1;
+    }
+
+    pteflags = PTE_U;
+    if(v->prot & PROT_READ)
+      pteflags |= PTE_R;
+    if(v->prot & PROT_WRITE)
+      pteflags |= PTE_W;
+    if(v->prot & PROT_EXEC)
+      pteflags |= PTE_X;
+
+    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, pteflags) != 0){
+      kfree(mem);
+      return -1;
+    }
+    return 0;
+  }
+  return -1;
+}
+
+// Write back one dirty shared page to its file.
+static void
+mmapwriteback(struct proc *p, struct vma *v, uint64 va)
+{
+  pte_t *pte = walk(p->pagetable, va, 0);
+  if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_D) == 0)
+    return;
+  uint64 pa = PTE2PA(*pte);
+  begin_op();
+  ilock(v->f->ip);
+  writei(v->f->ip, 0, pa, v->offset + (va - v->addr), PGSIZE);
+  iunlock(v->f->ip);
+  end_op();
+}
+
+// Unmap pages that are actually mapped (lazy mmap regions may have
+// holes), freeing their physical memory.  Never panics on holes.
+static void
+mmapunmap(struct proc *p, uint64 va, int npages)
+{
+  for(int i = 0; i < npages; i++){
+    pte_t *pte = walk(p->pagetable, va + i * PGSIZE, 0);
+    if(pte && (*pte & PTE_V))
+      uvmunmap(p->pagetable, va + i * PGSIZE, 1, 1);
+  }
+}
+
+uint64
+sys_munmap(void)
+{
+  uint64 addr;
+  int len;
+  struct proc *p = myproc();
+  struct vma *v;
+
+  if(argaddr(0, &addr) < 0 || argint(1, &len) < 0)
+    return -1;
+  if(len <= 0)
+    return -1;
+  addr = PGROUNDDOWN(addr);
+  len = PGROUNDUP(len);
+
+  for(int i = 0; i < MAXVMA; i++){
+    v = &p->vmas[i];
+    if(v->f == 0 || addr < v->addr || addr >= v->addr + v->len)
+      continue;
+
+    // write back dirty pages of shared mappings before unmapping
+    if(v->flags & MAP_SHARED){
+      for(uint64 va = addr; va < addr + len && va < v->addr + v->len;
+          va += PGSIZE)
+        mmapwriteback(p, v, va);
+    }
+
+    mmapunmap(p, addr, len / PGSIZE);
+
+    if(addr <= v->addr && addr + len >= v->addr + v->len){
+      // the whole region is unmapped
+      fileclose(v->f);
+      v->f = 0;
+    } else if(addr <= v->addr){
+      // unmapped the beginning of the region
+      v->offset += (addr + len) - v->addr;
+      v->len = v->addr + v->len - (addr + len);
+      v->addr = addr + len;
+    } else {
+      // unmapped the end of the region
+      v->len = addr - v->addr;
+    }
+    return 0;
+  }
+  return -1;
+}
+
+// Unmap and write back all of the process's mmap regions; called from
+// exit() and freeproc paths.
+void
+vmaclear(struct proc *p)
+{
+  for(int i = 0; i < MAXVMA; i++){
+    struct vma *v = &p->vmas[i];
+    if(v->f == 0)
+      continue;
+    if(v->flags & MAP_SHARED){
+      for(uint64 va = v->addr; va < v->addr + v->len; va += PGSIZE)
+        mmapwriteback(p, v, va);
+    }
+    mmapunmap(p, v->addr, v->len / PGSIZE);
+    fileclose(v->f);
+    v->f = 0;
+  }
+}
+
 uint64
 sys_mknod(void)
 {

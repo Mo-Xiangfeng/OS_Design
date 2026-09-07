@@ -281,13 +281,19 @@ freewalk(pagetable_t pagetable)
   kfree((void*)pagetable);
 }
 
-// Free user memory pages,
-// then free page-table pages.
+// Free user memory pages, then free page-table pages.
+// Lazy mmap regions may leave holes in [0, sz), so unmapping is done
+// page by page, skipping anything that was never mapped.
 void
 uvmfree(pagetable_t pagetable, uint64 sz)
 {
-  if(sz > 0)
-    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+  if(sz > 0){
+    for(uint64 va = 0; va < PGROUNDUP(sz); va += PGSIZE){
+      pte_t *pte = walk(pagetable, va, 0);
+      if(pte && (*pte & PTE_V))
+        uvmunmap(pagetable, va, 1, 1);
+    }
+  }
   freewalk(pagetable);
 }
 
@@ -309,7 +315,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      continue;   // lazily-mapped mmap pages may not exist yet
     pa = PTE2PA(*pte);
 
     if(*pte & PTE_W){

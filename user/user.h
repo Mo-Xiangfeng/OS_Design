@@ -29,6 +29,8 @@ int sysinfo(struct sysinfo*);
 int sigalarm(int ticks, void (*handler)());
 int sigreturn(void);
 int symlink(const char*, const char*);
+void *mmap(void *addr, int length, int prot, int flags, int fd, int offset);
+int munmap(void *addr, int length);
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
 #endif

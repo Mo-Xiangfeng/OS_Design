@@ -61,15 +61,26 @@ bzero(int dev, int bno)
 // Blocks.
 
 // Allocate a zeroed disk block.
+// The scan starts just after the block allocated last time, so that
+// sequential allocations (e.g. growing a large file) are amortized
+// O(1) instead of O(n) per block.
 static uint
 balloc(uint dev)
 {
   int b, bi, m;
   struct buf *bp;
+  static uint hint = 0;
+  int nbitmap;
 
-  bp = 0;
-  for(b = 0; b < sb.size; b += BPB){
-    bp = bread(dev, BBLOCK(b, sb));
+  nbitmap = (sb.size + BPB - 1) / BPB;
+
+  if(hint >= sb.size)
+    hint = 0;
+
+  for(int n = 0; n < nbitmap; n++){
+    int bm = (hint / BPB + n) % nbitmap;
+    b = bm * BPB;
+    bp = bread(dev, sb.bmapstart + bm);
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
@@ -77,6 +88,7 @@ balloc(uint dev)
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
+        hint = b + bi + 1;
         return b + bi;
       }
     }
@@ -84,6 +96,11 @@ balloc(uint dev)
   }
   panic("balloc: out of blocks");
 }
+
+// debug: ring buffer of recent bfree calls
+static uint bfree_log[512];
+static int bfree_log_n;
+static int bfree_log_i;
 
 // Free a disk block.
 static void
@@ -95,8 +112,20 @@ bfree(int dev, uint b)
   bp = bread(dev, BBLOCK(b, sb));
   bi = b % BPB;
   m = 1 << (bi % 8);
-  if((bp->data[bi/8] & m) == 0)
+  if((bp->data[bi/8] & m) == 0){
+    printf("bfree: double free of block %d (bitmap bytes 100..115: ", b);
+    for(int q = 100; q <= 115; q++)
+      printf("%02x ", bp->data[q] & 0xff);
+    printf(")\n");
+    for(int k = 0; k < bfree_log_n && k < 512; k++)
+      printf("  bfree[%d] block=%d\n", k, bfree_log[(bfree_log_i - bfree_log_n + k + 512) % 512]);
+    backtrace();
     panic("freeing free block");
+  }
+  bfree_log[bfree_log_i % 512] = b;
+  bfree_log_i = (bfree_log_i + 1) % 512;
+  if(bfree_log_n < 512)
+    bfree_log_n++;
   bp->data[bi/8] &= ~m;
   log_write(bp);
   brelse(bp);
@@ -440,6 +469,10 @@ itrunc(struct inode *ip)
   int i, j;
   struct buf *bp;
   uint *a;
+
+  if(ip->type == T_FILE && (ip->addrs[NDIRECT] || ip->addrs[NDIRECT+1]))
+    printf("itrunc: inum=%d nlink=%d size=%d a11=%d a12=%d\n",
+           ip->inum, ip->nlink, ip->size, ip->addrs[NDIRECT], ip->addrs[NDIRECT+1]);
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){

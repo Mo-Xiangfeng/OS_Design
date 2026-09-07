@@ -14,15 +14,10 @@
 #define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define NBUCKET      13               // size of buffer cache hash table
-#ifdef LAB_FS
+// The fs lab's double-indirect blocks allow files of up to ~65k blocks,
+// and usertests' writebig creates one, so the file system must be at
+// least that large (plus room for all the lab test programs).
 #define FSSIZE       200000  // size of file system in blocks
-#else
-#ifdef LAB_LOCK
-#define FSSIZE       10000  // size of file system in blocks
-#else
-#define FSSIZE       2000   // size of file system in blocks
-#endif
-#endif
 #define MAXPATH      128   // maximum file path name
 
 

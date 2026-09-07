@@ -94,6 +94,8 @@ void            backtrace(void);
 // proc.c
 int             cpuid(void);
 void            exit(int);
+void            vmaclear(struct proc*);
+int             mmapfault(struct proc*, uint64);
 int             fork(void);
 int             growproc(int);
 void            proc_mapstacks(pagetable_t);

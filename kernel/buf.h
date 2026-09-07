@@ -10,4 +10,3 @@ struct buf {
   uchar data[BSIZE];
   uint timestamp;   // set in brelse, for LRU eviction
 };
-

@@ -265,6 +265,11 @@ UPROGS += \
 	$U/_nettests
 endif
 
+ifeq ($(LAB),mmap)
+UPROGS += \
+	$U/_mmaptest
+endif
+
 UEXTRA=
 ifeq ($(LAB),util)
 	UEXTRA += user/xargstest.sh

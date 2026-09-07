@@ -115,6 +115,8 @@ extern uint64 sys_sysinfo(void);
 extern uint64 sys_sigalarm(void);
 extern uint64 sys_sigreturn(void);
 extern uint64 sys_symlink(void);
+extern uint64 sys_mmap(void);
+extern uint64 sys_munmap(void);
 
 static char *syscall_names[] = {
 [SYS_fork]    "fork",
@@ -143,6 +145,8 @@ static char *syscall_names[] = {
 [SYS_sigalarm] "sigalarm",
 [SYS_sigreturn] "sigreturn",
 [SYS_symlink] "symlink",
+[SYS_mmap] "mmap",
+[SYS_munmap] "munmap",
 };
 
 static uint64 (*syscalls[])(void) = {
@@ -178,6 +182,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_sigalarm] sys_sigalarm,
 [SYS_sigreturn] sys_sigreturn,
 [SYS_symlink] sys_symlink,
+[SYS_mmap] sys_mmap,
+[SYS_munmap] sys_munmap,
 };
 
 

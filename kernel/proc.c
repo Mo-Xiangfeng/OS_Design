@@ -349,6 +349,15 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  // copy the parent's memory-mapped regions; the child shares the file
+  // references (and via copy-on-write the underlying pages)
+  for(i = 0; i < MAXVMA; i++){
+    if(p->vmas[i].f){
+      np->vmas[i] = p->vmas[i];
+      filedup(np->vmas[i].f);
+    }
+  }
+
   pid = np->pid;
 
   release(&np->lock);
@@ -398,6 +407,9 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
+
+  // Unmap and write back any memory-mapped regions.
+  vmaclear(p);
 
   begin_op();
   iput(p->cwd);

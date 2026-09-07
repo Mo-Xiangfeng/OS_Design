@@ -82,6 +82,17 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+// Memory-mapped file region (VMA).  A region with f == 0 is free.
+#define MAXVMA 16
+struct vma {
+  uint64 addr;        // start of the region in the address space
+  uint64 len;         // length of the region in bytes (page-aligned)
+  int prot;           // PROT_READ / PROT_WRITE / PROT_EXEC
+  int flags;          // MAP_SHARED / MAP_PRIVATE
+  struct file *f;     // mapped file, 0 if the slot is free
+  uint64 offset;      // offset into the file
+};
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -114,4 +125,5 @@ struct proc {
   uint64 handler;              // user alarm handler address
   int alarm_on;                // handler currently running
   struct trapframe *alarm_trapframe; // saved registers for alarm
+  struct vma vmas[MAXVMA];     // memory-mapped file regions
 };
