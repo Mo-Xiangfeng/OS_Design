@@ -1,11 +1,12 @@
 #include "types.h"
 #include "riscv.h"
+#include "param.h"
 #include "defs.h"
 #include "date.h"
-#include "param.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -46,6 +47,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
+  
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
@@ -57,6 +59,7 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
+
 
   if(argint(0, &n) < 0)
     return -1;
@@ -72,6 +75,43 @@ sys_sleep(void)
   release(&tickslock);
   return 0;
 }
+
+
+#ifdef LAB_PGTBL
+// Report which pages in [base, base+len*PGSIZE) have been accessed,
+// as a bitmask written to the user buffer at abits_addr.
+int
+sys_pgaccess(void)
+{
+  uint64 base, abits_addr;
+  int len;
+  uint64 abits = 0;
+  struct proc *p = myproc();
+
+  if(argaddr(0, &base) < 0)
+    return -1;
+  if(argint(1, &len) < 0)
+    return -1;
+  if(argaddr(2, &abits_addr) < 0)
+    return -1;
+  if(len > 64)
+    return -1;
+
+  for(int i = 0; i < len; i++){
+    pte_t *pte = walk(p->pagetable, base + i * PGSIZE, 0);
+    if(pte == 0 || (*pte & PTE_V) == 0)
+      return -1;
+    if(*pte & PTE_A){
+      abits |= (1L << i);
+      *pte &= ~PTE_A;
+    }
+  }
+
+  if(copyout(p->pagetable, abits_addr, (char *)&abits, sizeof(abits)) < 0)
+    return -1;
+  return 0;
+}
+#endif
 
 uint64
 sys_kill(void)
@@ -94,4 +134,30 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_trace(void)
+{
+  int mask;
+  if(argint(0, &mask) < 0)
+    return -1;
+  myproc()->mask = mask;
+  return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  uint64 addr;
+  struct sysinfo info;
+  struct proc *p = myproc();
+
+  if(argaddr(0, &addr) < 0)
+    return -1;
+  info.freemem = freemem();
+  info.nproc = nproc();
+  if(copyout(p->pagetable, addr, (char *)&info, sizeof(info)) < 0)
+    return -1;
+  return 0;
 }
