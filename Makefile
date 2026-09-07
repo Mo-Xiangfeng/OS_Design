@@ -44,7 +44,16 @@ OBJS_KCSAN += \
 	$K/kcsan.o
 endif
 
+<<<<<<< HEAD
 ifeq ($(LAB),$(filter $(LAB), lock))
+=======
+ifeq ($(LAB),pgtbl)
+OBJS += \
+	$K/vmcopyin.o
+endif
+
+ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
+>>>>>>> syscall
 OBJS += \
 	$K/stats.o\
 	$K/sprintf.o
@@ -141,7 +150,11 @@ tags: $(OBJS) _init
 
 ULIB = $U/ulib.o $U/usys.o $U/printf.o $U/umalloc.o
 
+<<<<<<< HEAD
 ifeq ($(LAB),$(filter $(LAB), lock))
+=======
+ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
+>>>>>>> syscall
 ULIB += $U/statistics.o
 endif
 
@@ -188,11 +201,22 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_xargs\
+	$U/_trace\
+	$U/_sysinfotest\
 
 
 
 
+<<<<<<< HEAD
 ifeq ($(LAB),$(filter $(LAB), lock))
+=======
+ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
+>>>>>>> syscall
 UPROGS += \
 	$U/_stats
 endif
@@ -231,11 +255,14 @@ barrier: notxv6/barrier.c
 	gcc -o barrier -g -O2 $(XCFLAGS) notxv6/barrier.c -pthread
 endif
 
+<<<<<<< HEAD
 ifeq ($(LAB),pgtbl)
 UPROGS += \
 	$U/_pgtbltest
 endif
 
+=======
+>>>>>>> syscall
 ifeq ($(LAB),lock)
 UPROGS += \
 	$U/_kalloctest\
