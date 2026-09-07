@@ -188,6 +188,14 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_xargs\
+	$U/_memtest\
+	$U/_trace\
+	$U/_sysinfotest\
 
 
 
@@ -200,7 +208,12 @@ endif
 ifeq ($(LAB),traps)
 UPROGS += \
 	$U/_call\
+<<<<<<< HEAD
 	$U/_bttest
+=======
+	$U/_bttest\
+	$U/_alarmtest
+>>>>>>> fs
 endif
 
 ifeq ($(LAB),lazy)
@@ -244,7 +257,12 @@ endif
 
 ifeq ($(LAB),fs)
 UPROGS += \
+<<<<<<< HEAD
 	$U/_bigfile
+=======
+	$U/_bigfile\
+	$U/_symlinktest
+>>>>>>> fs
 endif
 
 
