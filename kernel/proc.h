@@ -101,8 +101,17 @@ struct proc {
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
+#ifdef LAB_PGTBL
+  struct usyscall *usyscall;   // shared read-only page with kernel
+#endif
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int mask;                    // syscall trace mask
+  int interval;                // alarm interval in ticks (0 = off)
+  int ticks;                   // ticks since last alarm
+  uint64 handler;              // user alarm handler address
+  int alarm_on;                // handler currently running
+  struct trapframe *alarm_trapframe; // saved registers for alarm
 };

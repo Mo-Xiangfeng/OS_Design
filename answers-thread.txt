@@ -1,0 +1,39 @@
+1. Why can't thread_switch() be implemented as an ordinary C function?
+   Why does it have to be written in assembly?
+
+   Switching threads means replacing the entire CPU register context (ra, sp
+   and the callee-saved registers) of the running thread with that of
+   another thread. A normal C function call would create its own stack
+   frame, and the compiler decides which registers it saves; the caller's
+   context would remain on the stack of the current thread. Only assembly
+   can load a brand-new sp (the other thread's stack) together with a new ra
+   and jump away, leaving no trace on the old stack.
+
+2. Why is it enough to save/restore only the callee-saved registers
+   (ra, sp, s0-s11) in thread_switch?
+
+   The RISC-V calling convention says that the caller-saved registers
+   (a0-a7, t0-t6, etc.) are already assumed to be clobbered by any function
+   call, so live values in them are saved by the compiler on the stack
+   before calling thread_switch. Only the callee-saved registers must
+   keep their values across the call, so saving and restoring just those
+   (plus ra and sp, which define the thread's execution point and stack)
+   is sufficient to resume a thread later exactly where it left off.
+
+3. Why does thread_yield() set current_thread->state = RUNNABLE before
+   calling thread_schedule()?
+
+   So that when thread_schedule() scans all_thread for a RUNNABLE thread,
+   the yielding thread is eligible to be selected again later. If it kept
+   state RUNNING, the scheduler would never run it again after switching
+   away (the initial main thread is an example of a RUNNING thread that is
+   never scheduled again).
+
+4. In barrier(), why does the waiting thread check the round number in a
+   while loop around pthread_cond_wait() instead of waiting once?
+
+   Because pthread_cond_wait() can wake up spuriously (without a broadcast
+   or signal), and because a broadcast might wake a thread before the round
+   it is waiting for has actually started. The loop re-checks the condition
+   (bstate.round advanced past the round the thread arrived in) under the
+   mutex, so the thread waits again unless the barrier truly completed.
