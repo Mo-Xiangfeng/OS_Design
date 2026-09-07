@@ -208,12 +208,8 @@ endif
 ifeq ($(LAB),traps)
 UPROGS += \
 	$U/_call\
-<<<<<<< HEAD
-	$U/_bttest
-=======
 	$U/_bttest\
 	$U/_alarmtest
->>>>>>> fs
 endif
 
 ifeq ($(LAB),lazy)
@@ -258,11 +254,8 @@ endif
 ifeq ($(LAB),fs)
 UPROGS += \
 <<<<<<< HEAD
-	$U/_bigfile
-=======
 	$U/_bigfile\
 	$U/_symlinktest
->>>>>>> fs
 endif
 
 
