@@ -23,10 +23,23 @@ struct {
   struct run *freelist;
 } kmem;
 
+// Reference count of each physical page, used by copy-on-write fork.
+struct {
+  struct spinlock lock;
+  int refcount[(PHYSTOP - KERNBASE) / PGSIZE];
+} kmemref;
+
+#define PA2IDX(pa) (((uint64)(pa) - KERNBASE) / PGSIZE)
+
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&kmemref.lock, "kmemref");
+  acquire(&kmemref.lock);
+  for(int i = 0; i < NELEM(kmemref.refcount); i++)
+    kmemref.refcount[i] = 1;
+  release(&kmemref.lock);
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -50,6 +63,17 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+
+  // Drop the reference count; the page is really freed only when the
+  // last reference goes away (copy-on-write fork shares pages).
+  acquire(&kmemref.lock);
+  if(kmemref.refcount[PA2IDX(pa)] > 1){
+    kmemref.refcount[PA2IDX(pa)]--;
+    release(&kmemref.lock);
+    return;
+  }
+  kmemref.refcount[PA2IDX(pa)] = 0;
+  release(&kmemref.lock);
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -76,9 +100,69 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r){
+    acquire(&kmemref.lock);
+    kmemref.refcount[PA2IDX(r)] = 1;
+    release(&kmemref.lock);
     memset((char*)r, 5, PGSIZE); // fill with junk
+  }
   return (void*)r;
+}
+
+// Increment the reference count of the physical page pa.
+void
+krefinc(void *pa)
+{
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+    panic("krefinc");
+  acquire(&kmemref.lock);
+  kmemref.refcount[PA2IDX(pa)]++;
+  release(&kmemref.lock);
+}
+
+// Decrement the reference count of the physical page pa.
+void
+krefdec(void *pa)
+{
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+    panic("krefdec");
+  acquire(&kmemref.lock);
+  kmemref.refcount[PA2IDX(pa)]--;
+  release(&kmemref.lock);
+}
+
+// Return the reference count of the physical page pa.
+int
+krefget(void *pa)
+{
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+    panic("krefget");
+  acquire(&kmemref.lock);
+  int n = kmemref.refcount[PA2IDX(pa)];
+  release(&kmemref.lock);
+  return n;
+}
+
+// Atomically: if pa has exactly one reference, keep it and return 0;
+// otherwise drop one reference (this process is about to take a private
+// copy) and return 1. Used by copy-on-write fault handling so that two
+// processes faulting the same shared page can't both take the copy path.
+int
+krefcopydec(void *pa)
+{
+  int shared;
+
+  if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
+    panic("krefcopydec");
+  acquire(&kmemref.lock);
+  if(kmemref.refcount[PA2IDX(pa)] == 1){
+    shared = 0;
+  } else {
+    kmemref.refcount[PA2IDX(pa)]--;
+    shared = 1;
+  }
+  release(&kmemref.lock);
+  return shared;
 }
 
 uint64

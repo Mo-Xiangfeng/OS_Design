@@ -64,6 +64,10 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 uint64          freemem(void);
+void            krefinc(void *);
+void            krefdec(void *);
+int             krefget(void *);
+int             krefcopydec(void *);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -175,6 +179,7 @@ void            vmprint(pagetable_t);
 uint64          walkaddr(pagetable_t, uint64);
 pte_t*          walk(pagetable_t, uint64, int);
 int             copyout(pagetable_t, uint64, char *, uint64);
+int             cowfault(pagetable_t, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 

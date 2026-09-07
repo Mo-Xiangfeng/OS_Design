@@ -63,6 +63,14 @@ sys_sleep(void)
 
   if(argint(0, &n) < 0)
     return -1;
+
+  // a negative argument asks for a kernel backtrace,
+  // to keep the regular sleep output free of noise
+  if(n < 0){
+    backtrace();
+    return 0;
+  }
+
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -73,7 +81,6 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
-  backtrace();
   return 0;
 }
 
