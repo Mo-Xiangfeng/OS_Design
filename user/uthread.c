@@ -14,6 +14,22 @@
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
+  // thread_switch() saves and restores the callee-saved registers in
+  // this contiguous context block, starting at ra.
+  uint64     ra;
+  uint64     sp;
+  uint64     s0;
+  uint64     s1;
+  uint64     s2;
+  uint64     s3;
+  uint64     s4;
+  uint64     s5;
+  uint64     s6;
+  uint64     s7;
+  uint64     s8;
+  uint64     s9;
+  uint64     s10;
+  uint64     s11;
 };
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
@@ -58,10 +74,7 @@ thread_schedule(void)
     next_thread->state = RUNNING;
     t = current_thread;
     current_thread = next_thread;
-    /* YOUR CODE HERE
-     * Invoke thread_switch to switch from t to next_thread:
-     * thread_switch(??, ??);
-     */
+    thread_switch((uint64)&t->ra, (uint64)&next_thread->ra);
   } else
     next_thread = 0;
 }
@@ -75,7 +88,9 @@ thread_create(void (*func)())
     if (t->state == FREE) break;
   }
   t->state = RUNNABLE;
-  // YOUR CODE HERE
+  // a new thread starts executing at func, on the top of its own stack
+  t->ra = (uint64)func;
+  t->sp = (uint64)(t->stack + STACK_SIZE);
 }
 
 void 
