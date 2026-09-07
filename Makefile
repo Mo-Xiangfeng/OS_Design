@@ -207,12 +207,8 @@ endif
 ifeq ($(LAB),traps)
 UPROGS += \
 	$U/_call\
-<<<<<<< HEAD
-	$U/_bttest
-=======
 	$U/_bttest\
 	$U/_alarmtest
->>>>>>> traps
 endif
 
 ifeq ($(LAB),lazy)
