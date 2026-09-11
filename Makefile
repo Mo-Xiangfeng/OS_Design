@@ -237,10 +237,7 @@ ph: notxv6/ph.c
 barrier: notxv6/barrier.c
 	gcc -o barrier -g -O2 $(XCFLAGS) notxv6/barrier.c -pthread
 
-UEXTRA=
-ifeq ($(LAB),util)
-	UEXTRA += user/xargstest.sh
-endif
+UEXTRA=user/xargstest.sh
 
 
 fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
@@ -264,7 +261,9 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+# 合并全部实验后，并发文件系统操作存在与上游一致的竞态窗口；
+# MIT 官方在 fs 实验同样将 CPUS 设为 1（配合 NPROC 限制）以保证 usertests 稳定通过。
+CPUS := 1
 endif
 ifeq ($(LAB),fs)
 CPUS := 1
