@@ -130,9 +130,7 @@ void            push_off(void);
 void            pop_off(void);
 uint64          lockfree_read8(uint64 *addr);
 int             lockfree_read4(int *addr);
-#ifdef LAB_LOCK
 void            freelock(struct spinlock*);
-#endif
 
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);

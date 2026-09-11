@@ -8,7 +8,6 @@
 #include "proc.h"
 #include "defs.h"
 
-#ifdef LAB_LOCK
 #define NLOCK 500
 
 static struct spinlock *locks[NLOCK];
@@ -41,7 +40,6 @@ findslot(struct spinlock *lk) {
   }
   panic("findslot");
 }
-#endif
 
 void
 initlock(struct spinlock *lk, char *name)
@@ -49,11 +47,9 @@ initlock(struct spinlock *lk, char *name)
   lk->name = name;
   lk->locked = 0;
   lk->cpu = 0;
-#ifdef LAB_LOCK
   lk->nts = 0;
   lk->n = 0;
   findslot(lk);
-#endif  
 }
 
 // Acquire the lock.
@@ -65,20 +61,14 @@ acquire(struct spinlock *lk)
   if(holding(lk))
     panic("acquire");
 
-#ifdef LAB_LOCK
-    __sync_fetch_and_add(&(lk->n), 1);
-#endif      
+  __sync_fetch_and_add(&(lk->n), 1);
 
   // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
   //   a5 = 1
   //   s1 = &lk->locked
   //   amoswap.w.aq a5, a5, (s1)
   while(__sync_lock_test_and_set(&lk->locked, 1) != 0) {
-#ifdef LAB_LOCK
     __sync_fetch_and_add(&(lk->nts), 1);
-#else
-   ;
-#endif
   }
 
   // Tell the C compiler and the processor to not move loads or stores
@@ -174,7 +164,6 @@ lockfree_read4(int *addr) {
   return val;
 }
 
-#ifdef LAB_LOCK
 int
 snprint_lock(char *buf, int sz, struct spinlock *lk)
 {
@@ -222,4 +211,3 @@ statslock(char *buf, int sz) {
   release(&lock_locks);  
   return n;
 }
-#endif
