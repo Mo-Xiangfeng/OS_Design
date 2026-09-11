@@ -199,6 +199,7 @@ UPROGS=\
 	$U/_bcachetest\
 	$U/_uthread\
 	$U/_mmaptest\
+	$U/_pgtbltest\
 
 
 UPROGS += \
@@ -213,11 +214,6 @@ endif
 ifeq ($(LAB),lazy)
 UPROGS += \
 	$U/_lazytests
-endif
-
-ifeq ($(LAB),pgtbl)
-UPROGS += \
-	$U/_pgtbltest
 endif
 
 ifeq ($(LAB),fs)

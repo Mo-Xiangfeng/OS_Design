@@ -112,7 +112,6 @@ sys_sigreturn(void)
 }
 
 
-#ifdef LAB_PGTBL
 // Report which pages in [base, base+len*PGSIZE) have been accessed,
 // as a bitmask written to the user buffer at abits_addr.
 int
@@ -146,7 +145,6 @@ sys_pgaccess(void)
     return -1;
   return 0;
 }
-#endif
 
 uint64
 sys_kill(void)

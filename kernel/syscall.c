@@ -107,9 +107,7 @@ extern uint64 sys_uptime(void);
 #ifdef LAB_NET
 extern uint64 sys_connect(void);
 #endif
-#ifdef LAB_PGTBL
 extern uint64 sys_pgaccess(void);
-#endif
 extern uint64 sys_trace(void);
 extern uint64 sys_sysinfo(void);
 extern uint64 sys_sigalarm(void);
@@ -174,9 +172,7 @@ static uint64 (*syscalls[])(void) = {
 #ifdef LAB_NET
 [SYS_connect] sys_connect,
 #endif
-#ifdef LAB_PGTBL
 [SYS_pgaccess] sys_pgaccess,
-#endif
 [SYS_trace]   sys_trace,
 [SYS_sysinfo] sys_sysinfo,
 [SYS_sigalarm] sys_sigalarm,

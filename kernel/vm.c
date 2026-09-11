@@ -391,7 +391,6 @@ uvmclear(pagetable_t pagetable, uint64 va)
   *pte &= ~PTE_U;
 }
 
-#ifdef LAB_PGTBL
 // Recursively print the entries of a page table, indented by depth.
 static void
 vmprint_rec(pagetable_t pagetable, int level)
@@ -415,7 +414,6 @@ vmprint(pagetable_t pagetable)
   printf("page table %p\n", pagetable);
   vmprint_rec(pagetable, 0);
 }
-#endif
 
 
 // Copy from kernel to user.
